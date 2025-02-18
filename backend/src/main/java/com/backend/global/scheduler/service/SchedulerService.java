@@ -106,19 +106,19 @@ public class SchedulerService {
 			.map(Job::toEntity)
 			.toList();
 
-		// 전체 저장
-		List<JobPosting> savedJobPostingList = saveNewJobs(jobPostingList);
+		//쿼리 1번
 
 		//JSON 응답 파싱
 		List<Job> jobList = jobs.getJobsDetail().getJobList();
 		Map<Long, Job> jobMap = jobList.stream()
 			.collect(Collectors.toMap(job -> Long.parseLong(job.getId()), job -> job));
 
-		for (JobPosting jobPosting : savedJobPostingList) {
+		for (JobPosting jobPosting : jobPostingList) {
 
 			//채용 공고랑 jobPosting이랑 일치하는 애 찾는 if문
 			// 한 페이지에 해당하는 110개의 데이터를 방금 저장한 공고들인 jobPosting과 비교하여, 손수 job-code의 code를 꺼내기 위한 작업.
 			Job findJob = jobMap.get(jobPosting.getJobId());
+			//10개
 			String jobCode = findJob.getPositionDto().getJobCode().getCode();
 
 			//여러개면 , 기준으로 짜르기
@@ -126,15 +126,16 @@ public class SchedulerService {
 
 			for (String s : jobCodeArray) {
 				// db에 저장된 jobSkill, code로 조회
+				// 3개의 컬럼 id만 필요
 				Optional<JobSkill> jobSkillOptional = jobSkillRepository.findByCode(
 					Integer.parseInt(s.trim()));
 
+				//2번
 				//jobSkill DB에 없다면
 				if (jobSkillOptional.isEmpty()) {
 					continue;
 				} else {
 					JobSkill jobSkill = jobSkillOptional.get();
-
 					//JobPosting에 jobskill 설정
 					//더티 체킹으로 인해 업데이트 쿼리 자동 발생
 					jobPosting.getJobPostingJobSkillList().add(
@@ -146,12 +147,15 @@ public class SchedulerService {
 			}
 		}
 
+		// 전체 저장을 끋지점으로 이동 -> 34초 개선
+		List<JobPosting> savedJobPostingList = saveNewJobs(jobPostingList);
+
 		//총 가져와야되는 개수 초기화
 		if (totalJobs == Integer.MAX_VALUE) {
 			totalJobs = Integer.parseInt(jobs.getJobsDetail().getTotal());
 		}
 
-		totalCount += jobPostingList.size();
+		totalCount += savedJobPostingList.size();
 
 		if (totalCount < totalJobs) {
 			processJobPostings(totalCount, totalJobs, ++pageNumber);
@@ -171,7 +175,7 @@ public class SchedulerService {
 
 		URI uri = UriComponentsBuilder.fromHttpUrl(API_URL)
 			.queryParam("access-key", apiKey)
-			.queryParam("published", getPublishedDate())
+			// .queryParam("published", getPublishedDate())
 			.queryParam("job_mid_cd", "2")
 			.queryParam("start", pageNumber) // 현재 페이지숫자
 			.queryParam("count", count)
