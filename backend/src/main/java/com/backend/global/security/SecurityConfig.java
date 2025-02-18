@@ -1,23 +1,10 @@
 package com.backend.global.security;
 
-import com.backend.global.redis.repository.RedisRepository;
-import com.backend.global.response.GenericResponse;
-import com.backend.global.security.filter.JwtAuthenticationFilter;
-import com.backend.global.security.filter.JwtAuthorizationFilter;
-import com.backend.global.security.handler.JwtLogoutHandler;
-import com.backend.global.security.handler.JwtLogoutSuccessHandler;
-import com.backend.global.security.handler.OAuth2LoginFailureHandler;
-import com.backend.global.security.handler.OAuth2LoginSuccessHandler;
-import com.backend.global.security.oauth.CustomOAuth2UserService;
-import com.backend.standard.util.AuthResponseUtil;
-import com.backend.standard.util.JwtUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletResponse;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,6 +20,22 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import com.backend.global.redis.repository.RedisRepository;
+import com.backend.global.response.GenericResponse;
+import com.backend.global.security.filter.JwtAuthenticationFilter;
+import com.backend.global.security.filter.JwtAuthorizationFilter;
+import com.backend.global.security.handler.JwtLogoutHandler;
+import com.backend.global.security.handler.JwtLogoutSuccessHandler;
+import com.backend.global.security.handler.OAuth2LoginFailureHandler;
+import com.backend.global.security.handler.OAuth2LoginSuccessHandler;
+import com.backend.global.security.oauth.CustomOAuth2UserService;
+import com.backend.standard.util.AuthResponseUtil;
+import com.backend.standard.util.JwtUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 
 @Configuration
 @EnableWebSecurity
@@ -76,7 +79,8 @@ public class SecurityConfig {
 			"/api/v1/posts",// 게시글 전체 조회에는 로그인 하지 않은 유저도 이용 가능해야 함
 			"/api/v1/category",
 			"/ws/**",
-			"/api/v1/adm/login"
+			"/api/v1/adm/login",
+			"/api/v1/job-posting/init"
 		));
     
 		PUBLIC_URLS.put(HttpMethod.POST, List.of("/api/v1/adm/login"));
@@ -114,7 +118,7 @@ public class SecurityConfig {
 				// 나머지 특정 권한이 필요한 URL들
 				authorizeRequests
 					//전체 허용
-          .requestMatchers("/h2-console/**", "/ws/**").permitAll()
+          .requestMatchers("/h2-console/**", "/ws/**", "/api/v1/job-posting/init").permitAll()
 					.requestMatchers(HttpMethod.POST, "/api/v1/adm/login").permitAll()
 
 					//어드민 권한만 사용 가능

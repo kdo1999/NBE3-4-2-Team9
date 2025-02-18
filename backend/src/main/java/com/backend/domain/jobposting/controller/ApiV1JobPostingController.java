@@ -1,14 +1,5 @@
 package com.backend.domain.jobposting.controller;
 
-import com.backend.domain.jobposting.dto.JobPostingDetailResponse;
-import com.backend.domain.jobposting.dto.JobPostingPageResponse;
-import com.backend.domain.jobposting.service.JobPostingService;
-import com.backend.domain.jobposting.util.JobPostingSearchCondition;
-import com.backend.global.response.GenericResponse;
-import com.backend.global.security.custom.CustomUserDetails;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,6 +7,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.backend.domain.jobposting.dto.JobPostingDetailResponse;
+import com.backend.domain.jobposting.dto.JobPostingPageResponse;
+import com.backend.domain.jobposting.service.JobPostingService;
+import com.backend.domain.jobposting.util.JobPostingSearchCondition;
+import com.backend.global.response.GenericResponse;
+import com.backend.global.scheduler.service.SchedulerService;
+import com.backend.global.security.custom.CustomUserDetails;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * ApiV1JobPostingController
@@ -31,7 +34,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class ApiV1JobPostingController {
 
 	private final JobPostingService jobPostingService;
+	private final SchedulerService schedulerService;
 
+	@GetMapping("/init")
+	public GenericResponse<Void> initData() {
+		schedulerService.savePublicData();
+		return GenericResponse.of(true, HttpStatus.OK.value());
+	}
 	/**
 	 * 전체 조회 메서드 입니다.
 	 *
