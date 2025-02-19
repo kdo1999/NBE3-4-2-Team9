@@ -1,10 +1,10 @@
 package com.backend.global.response;
 
 import java.time.ZonedDateTime;
+
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
-import org.springframework.http.HttpStatus;
 
 /**
  * GenericResponse
@@ -29,7 +29,7 @@ public class GenericResponse<T> {
 		this.data = data;
 		this.message = message;
 	}
-
+	//제네릭
 	/**
 	 * isSuccess, code, data, message가 있을 때
 	 *

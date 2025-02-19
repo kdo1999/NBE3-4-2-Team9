@@ -7,7 +7,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -21,10 +20,12 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.backend.domain.jobposting.entity.JobPosting;
 import com.backend.domain.jobposting.entity.JobPostingJobSkill;
 import com.backend.domain.jobposting.repository.JobPostingRepository;
+import com.backend.domain.jobskill.constant.JobSkillConstant;
 import com.backend.domain.jobskill.entity.JobSkill;
 import com.backend.domain.jobskill.repository.JobSkillRepository;
 import com.backend.global.exception.GlobalErrorCode;
 import com.backend.global.exception.GlobalException;
+import com.backend.global.redis.repository.RedisRepository;
 import com.backend.global.scheduler.apiresponse.Job;
 import com.backend.global.scheduler.apiresponse.Jobs;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -43,6 +44,7 @@ public class SchedulerService {
 	private final ObjectMapper objectMapper;
 	private final RestTemplate restTemplate;
 	private final RetryTemplate retryTemplate;
+	private final RedisRepository redisRepository;
 
 
 	// URI로 조합할 OPEN API URL
@@ -106,38 +108,38 @@ public class SchedulerService {
 			.map(Job::toEntity)
 			.toList();
 
-		//쿼리 1번
-
 		//JSON 응답 파싱
 		List<Job> jobList = jobs.getJobsDetail().getJobList();
 		Map<Long, Job> jobMap = jobList.stream()
 			.collect(Collectors.toMap(job -> Long.parseLong(job.getId()), job -> job));
 
 		for (JobPosting jobPosting : jobPostingList) {
-
-			//채용 공고랑 jobPosting이랑 일치하는 애 찾는 if문
-			// 한 페이지에 해당하는 110개의 데이터를 방금 저장한 공고들인 jobPosting과 비교하여, 손수 job-code의 code를 꺼내기 위한 작업.
+			// JobId로 분류된 JobMap에서 Job 꺼내기
 			Job findJob = jobMap.get(jobPosting.getJobId());
-			//10개
+
+			//꺼내온 Job 안에 JobCode 꺼내기
 			String jobCode = findJob.getPositionDto().getJobCode().getCode();
 
 			//여러개면 , 기준으로 짜르기
 			String[] jobCodeArray = jobCode.split(",");
 
 			for (String s : jobCodeArray) {
-				// db에 저장된 jobSkill, code로 조회
-				// 3개의 컬럼 id만 필요
-				Optional<JobSkill> jobSkillOptional = jobSkillRepository.findByCode(
-					Integer.parseInt(s.trim()));
+				String key = JobSkillConstant.JOB_SKILL_REDIS_KEY.getKey() + s;
 
-				//2번
-				//jobSkill DB에 없다면
-				if (jobSkillOptional.isEmpty()) {
-					continue;
-				} else {
-					JobSkill jobSkill = jobSkillOptional.get();
-					//JobPosting에 jobskill 설정
-					//더티 체킹으로 인해 업데이트 쿼리 자동 발생
+				//Redis에서 KEY값이 있는지 없는지 조회
+				//exists
+				boolean hasKeyResult = redisRepository.hasKey(key);
+
+				//만약 있다면 Redis에서 VALUE 조회해서 jobSkill 객체 생성
+				if (hasKeyResult) {
+					//JobSkillId 가져오는 로직
+					Long jobSkillId = Long.valueOf(redisRepository.get(key).toString());
+
+					//JobSkill 생성
+					JobSkill jobSkill = JobSkill.builder()
+						.id(jobSkillId)
+						.build();
+
 					jobPosting.getJobPostingJobSkillList().add(
 						JobPostingJobSkill.builder()
 							.jobPosting(jobPosting)
@@ -147,7 +149,7 @@ public class SchedulerService {
 			}
 		}
 
-		// 전체 저장을 끋지점으로 이동 -> 34초 개선
+		// 전체 저장
 		List<JobPosting> savedJobPostingList = saveNewJobs(jobPostingList);
 
 		//총 가져와야되는 개수 초기화
@@ -186,12 +188,6 @@ public class SchedulerService {
 
 		try {
 			String jsonResponse = restTemplate.getForObject(uri, String.class);
-
-			// 이거 지워도 밑에
-			if (jsonResponse == null || jsonResponse.isEmpty()) {
-				log.error(GlobalErrorCode.NO_DATA_RECEIVED.getMessage());
-				throw new GlobalException(GlobalErrorCode.NO_DATA_RECEIVED);
-			}
 
 			Jobs dataResponse = objectMapper.readValue(jsonResponse, Jobs.class);
 
@@ -235,6 +231,4 @@ public class SchedulerService {
 			throw new GlobalException(GlobalErrorCode.DATABASE_SAVE_FAILED);
 		}
 	}
-
-
 }
